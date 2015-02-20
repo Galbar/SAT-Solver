@@ -32,7 +32,7 @@ void readClauses( ){
   for (uint i = 0; i < numClauses; ++i) {
     int lit;
     while (cin >> lit and lit != 0) clauses[i].push_back(lit);
-  }    
+  }
 }
 
 
@@ -49,7 +49,7 @@ int currentValueInModel(int lit){
 void setLiteralToTrue(int lit){
   modelStack.push_back(lit);
   if (lit > 0) model[lit] = TRUE;
-  else model[-lit] = FALSE;		
+  else model[-lit] = FALSE;
 }
 
 
@@ -61,13 +61,13 @@ bool propagateGivesConflict ( ) {
       int numUndefs = 0;
       int lastLitUndef = 0;
       for (uint k = 0; not someLitTrue and k < clauses[i].size(); ++k){
-	int val = currentValueInModel(clauses[i][k]);
-	if (val == TRUE) someLitTrue = true;
-	else if (val == UNDEF){ ++numUndefs; lastLitUndef = clauses[i][k]; }
-      }
+       int val = currentValueInModel(clauses[i][k]);
+       if (val == TRUE) someLitTrue = true;
+       else if (val == UNDEF){ ++numUndefs; lastLitUndef = clauses[i][k]; }
+     }
       if (not someLitTrue and numUndefs == 0) return true; // conflict! all lits false
-      else if (not someLitTrue and numUndefs == 1) setLiteralToTrue(lastLitUndef);	
-    }    
+      else if (not someLitTrue and numUndefs == 1) setLiteralToTrue(lastLitUndef);
+    }
   }
   return false;
 }
@@ -105,16 +105,16 @@ void checkmodel(){
     if (not someTrue) {
       cout << "Error in model, clause is not satisfied:";
       for (int j = 0; j < clauses[i].size(); ++j) cout << clauses[i][j] << " ";
-      cout << endl;
+        cout << endl;
       exit(1);
     }
-  }  
+  }
 }
 
 int main(){ 
   readClauses(); // reads numVars, numClauses and clauses
   model.resize(numVars+1,UNDEF);
-  indexOfNextLitToPropagate = 0;  
+  indexOfNextLitToPropagate = 0;
   decisionLevel = 0;
   
   // Take care of initial unit clauses, if any
@@ -125,19 +125,19 @@ int main(){
       if (val == FALSE) {cout << "UNSATISFIABLE" << endl; return 10;}
       else if (val == UNDEF) setLiteralToTrue(lit);
     }
-  
+
   // DPLL algorithm
-  while (true) {
-    while ( propagateGivesConflict() ) {
-      if ( decisionLevel == 0) { cout << "UNSATISFIABLE" << endl; return 10; }
-      backtrack();
-    }
-    int decisionLit = getNextDecisionLiteral();
-    if (decisionLit == 0) { checkmodel(); cout << "SATISFIABLE" << endl; return 20; }
+    while (true) {
+      while ( propagateGivesConflict() ) {
+        if ( decisionLevel == 0) { cout << "UNSATISFIABLE" << endl; return 10; }
+        backtrack();
+      }
+      int decisionLit = getNextDecisionLiteral();
+      if (decisionLit == 0) { checkmodel(); cout << "SATISFIABLE" << endl; return 20; }
     // start new decision level:
     modelStack.push_back(0);  // push mark indicating new DL
     ++indexOfNextLitToPropagate;
     ++decisionLevel;
     setLiteralToTrue(decisionLit);    // now push decisionLit on top of the mark
   }
-}  
+}
