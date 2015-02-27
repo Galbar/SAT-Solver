@@ -53,6 +53,18 @@ def run(directory, match, replace, replace_with, prepend, append, display_list,
             new_filename = filename
             new_filename = re.sub(replace, replace_with, filename)
             new_filename = prepend + new_filename + append
+            if display_list:
+                if command and c == "":
+                    c = buildCommand(directory +
+                                     (filename if copy or
+                                      filename == new_filename else
+                                      new_filename), command)
+                print (directory + filename
+                       + ("\n $>" + c if command else "")
+                       + ("(erased)" if erase else "")
+                       + (("\n  => " + directory if not copy else "\n  +> " +
+                           copy) + new_filename if (new_filename != filename or
+                                                    copy) else ""))
             if not test:
                 if copy:
                     if not os.path.exists(copy):
@@ -74,19 +86,7 @@ def run(directory, match, replace, replace_with, prepend, append, display_list,
                     subprocess.call(c, shell=True)
                 if erase:
                     os.remove(directory + (filename if copy or
-                              filename == new_filename else new_filename))
-            if display_list:
-                if command and c == "":
-                    c = buildCommand(directory +
-                                     (filename if copy or
-                                      filename == new_filename else
-                                      new_filename), command)
-                print (directory + filename
-                       + ("\n $>" + c if command else "")
-                       + ("(erased)" if erase else "")
-                       + (("\n  => " + directory if not copy else "\n  +> " +
-                           copy) + new_filename if (new_filename != filename or
-                                                    copy) else ""))
+                              filename == new_filename else new_filename))            
         elif recursive and os.path.isdir(directory + filename):
             run(directory + filename, match, replace, replace_with,
                 prepend, append, display_list, test,

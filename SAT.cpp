@@ -1,8 +1,10 @@
+
 #include <iostream>
 #include <stdlib.h>
 #include <algorithm>
 #include <vector>
-#include <queue>
+#include <map>
+#include <cassert>
 using namespace std;
 
 #define UNDEF -1
@@ -17,8 +19,45 @@ vector<int> modelStack;
 uint indexOfNextLitToPropagate;
 uint decisionLevel;
 
-priority_queue<pair <double, int>> undef_queue;
+multimap<double, int> undef_queue;
+vector<multimap<double, int>::iterator> undef_lit_in_queue;
+vector<double> literal_priority;
 
+// Jeroslow-Wang
+void calcPriorities()
+{
+	literal_priority.resize(numVars+1, 0.);
+}
+
+void queuePush(int lit)
+{
+	if (undef_lit_in_queue[abs(lit)] != undef_queue.end())
+		return;
+	multimap<double, int>::iterator it = undef_queue.insert(pair<double, int>(literal_priority[abs(lit)], abs(lit)));
+	undef_lit_in_queue[abs(lit)] = it;
+}
+
+int queueFront()
+{
+	return undef_queue.begin()->second;
+}
+
+void queuePop()
+{
+	if (undef_queue.empty())
+		return;
+	int lit = undef_queue.begin()->second;
+	undef_queue.erase(undef_queue.begin());
+	undef_lit_in_queue[lit] = undef_queue.end();
+}
+
+void queueEraseElement(int lit)
+{
+	if (undef_lit_in_queue[abs(lit)] == undef_queue.end())
+		return;
+	undef_queue.erase(undef_lit_in_queue[abs(lit)]);
+	undef_lit_in_queue[abs(lit)] = undef_queue.end();
+}
 
 void readClauses()
 {
@@ -58,6 +97,7 @@ void setLiteralToTrue(int lit)
 	modelStack.push_back(lit);
 	if (lit > 0) model[lit] = TRUE;
 	else model[-lit] = FALSE;
+	queueEraseElement(abs(lit));
 }
 
 
@@ -78,8 +118,12 @@ bool propagateGivesConflict()
 				else if (val == UNDEF)
 					{ ++numUndefs; lastLitUndef = clauses[i][k]; }
 			}
-			if (not someLitTrue and numUndefs == 0) return true; // conflict! all lits false
-			else if (not someLitTrue and numUndefs == 1) setLiteralToTrue(lastLitUndef);
+			if (not someLitTrue and numUndefs == 0)
+				return true; // conflict! all lits false
+			else if (not someLitTrue and numUndefs == 1)
+			{
+				setLiteralToTrue(lastLitUndef);
+			}
 		}
 	}
 	return false;
@@ -94,7 +138,8 @@ void backtrack()
 	{ // 0 is the DL mark
 		lit = modelStack[i];
 		model[abs(lit)] = UNDEF;
-		undef_queue.push(pair<double, int>(0., abs(lit)));
+		queuePush(abs(lit));
+
 		modelStack.pop_back();
 		--i;
 	}
@@ -111,13 +156,12 @@ int getNextDecisionLiteral()
 {
 	//for (uint i = 1; i <= numVars; ++i) // stupid heuristic:
 	//	if (model[i] == UNDEF) return i;  // returns first UNDEF var, positively
+	//return 0; // reurns 0 when all literals are defined
 	if (undef_queue.empty())
-		return 0; // reurns 0 when all literals are defined
+		return 0;
 	else
 	{
-		int lit = undef_queue.top().second;
-		undef_queue.pop();
-		return lit;
+		return queueFront();
 	}
 }
 
@@ -145,6 +189,9 @@ int main()
 	indexOfNextLitToPropagate = 0;
 	decisionLevel = 0;
 
+	calcPriorities();
+	undef_lit_in_queue.resize(numVars+1, undef_queue.end());
+
 	// Take care of initial unit clauses, if any
 	for (uint i = 0; i < numClauses; ++i)
 		if (clauses[i].size() == 1)
@@ -160,12 +207,19 @@ int main()
 	// Put all UNDEF literals in undef_queue for fast access
 	for (uint i = 1; i <= numVars; ++i)
 		if (model[i] == UNDEF)
-			undef_queue.push(pair<double, int>(0., i));
+		{
+			queuePush(i);
+		}
 
 	// DPLL algorithm
 	while (true)
 	{
-		cerr << "undef_queue.size(): " << undef_queue.size() << endl;
+		//cout << "undef_queue.size(): " << undef_queue.size() << endl;
+		uint count = 0;
+		for (uint i = 1; i <= numVars; ++i) // stupid heuristic:
+			if (model[i] == UNDEF) ++count;
+		//cout << "undef_queue.size(): " << count << endl;
+		assert(count == undef_queue.size());
 		while ( propagateGivesConflict() )
 		{
 			if ( decisionLevel == 0)
