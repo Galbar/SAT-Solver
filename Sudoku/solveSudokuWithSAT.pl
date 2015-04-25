@@ -1,18 +1,17 @@
-:-include(graphColoringInstance1).
+:-include(sud78).
 :-dynamic(varNumber/3).
 
 size(9).
 subSize(3).
 
-symbolicOutput(1). % set to 1 to see symbolic output only; 0 otherwise.
+symbolicOutput(0). % set to 1 to see symbolic output only; 0 otherwise.
 
-% writeClauses:- atleastOneNumberPerCell,
-	atmostOneNumberPerCell,
-	atleastOneNumberPerColumn,
+writeClauses:- onlyOneNumberPerCell,
 	atmostOneNumberPerColumn,
-	atleastOneNumberPerRow,
-	atmostOneNumberPerRow.
-writeClauses:- atmostOneNumberPerRow.
+	atmostOneNumberPerRow,
+ 	atmostOneNumberPerSquare,
+	problemDefinition.
+% writeClauses:- atmostOneNumberPerCell.
 
 % writeClauses:- atleastOneColorPerNode, atmostOneColorPerNode, differentColors.
 % 
@@ -29,42 +28,48 @@ writeClauses:- atmostOneNumberPerRow.
 % 	writeClause( [ \+x-I1-J, \+x-I2-J ] ), fail.
 % differentColors.
 
-atleastOneNumberPerCell:- size(N),
-	between(1, N, I), between(1, N, J), findall(x-I-J-K, between(1, N, K), C), writeClause(C), fail.
-atleastOneNumberPerCell.
-atmostOneNumberPerCell:- size(N),
-	between(1, N, I), between(1, N, J), N_ is N-1, between(1, N_, K), K1 is K+1,
-	writeClause([\+x-I-J-K, \+x-I-J-K1]), fail.
-atmostOneNumberPerCell.
+problemDefinition:- filled(I, J, K), writeClause( [x-I-J-K] ), fail.
+problemDefinition.
 
-atleastOneNumberPerColumn:- size(N),
-	between(1, N, I), between(1, N, K), findall(x-I-J-K, between(1, N, J), C), writeClause(C), fail.
-atleastOneNumberPerColumn.
+neg(\+X,X):-!.
+neg(X,\+X).
+
+amo(L):- append(_, [X|L1], L), append(_, [Y|_], L1), neg(X, NX), neg(Y, NY), writeClause([NX, NY]), fail.
+amo(_).
+alo(L):- writeClause(L).
+
+square(I, J, P):- subSize(SubN),
+	between(1, SubN, SR), % for each square row
+	between(1, SubN, SC), % for each square column
+	I is (P // SubN) * SubN + SR,
+	J is (P mod SubN) * SubN + SC.
+
+onlyOneNumberPerCell:- size(N),
+	between(1, N, I), between(1, N, J), findall(x-I-J-K, between(1, N, K), C), alo(C), amo(C), fail.
+onlyOneNumberPerCell.
+
 atmostOneNumberPerColumn:- size(N),
-	between(1, N, I), between(1, N, K), N_ is N-1, between(1, N_, J), J1 is J+1,
-	writeClause([\+x-I-J-K, \+x-I-J1-K]), fail.
+	between(1, N, J), between(1, N, K), findall(x-I-J-K, between(1, N, I), C), amo(C), fail.
 atmostOneNumberPerColumn.
 
-atleastOneNumberPerRow:- size(N),
-	between(1, N, J), between(1, N, K), findall(x-I-J-K, between(1, N, I), C), writeClause(C), fail.
-atleastOneNumberPerRow.
 atmostOneNumberPerRow:- size(N),
-	between(1, N, J), between(1, N, K), N_ is N-1, between(1, N_, I), I1 is I+1,
-	writeClause([\+x-I-J-K, \+x-I1-J-K]), fail.
+	between(1, N, I), between(1, N, K), findall(x-I-J-K, between(1, N, J), C), amo(C), fail.
 atmostOneNumberPerRow.
 
-% TODO: falta implementar esto!
-atleastOneNumberPerSquare:- size(N), subSize(SubN),
-	between(1, N, J), between(1, N, K), findall(x-I-J-K, between(1, N, I), C), writeClause(C), fail.
-atleastOneNumberPerSquare.
-% TODO: falta implementar esto!
-atmostOneNumberPerSquare:- size(N), subSize(SubN),
-	between(1, N, J), between(1, N, K), N_ is N-1, between(1, N_, I), I1 is I+1,
-	writeClause([\+x-I-J-K, \+x-I1-J-K]), fail.
+atmostOneNumberPerSquare:- size(N),
+	N_ is N-1,
+	between(0, N_, P),
+	between(1, N, K),     % for each value
+	findall(x-I-J-K, square(I, J, P), L),
+	amo(L), fail.
 atmostOneNumberPerSquare.
 
-displaySol([]).
-displaySol([Nv|S]):- num2var(Nv,x-I-J), write(I), write(': color '), write(J), nl, displaySol(S).
+displaySol(S):- size(N), num2varL(S, R),
+	between(1, N, I), nl, between(1, N, J), member(x-I-J-K, R), write(K), write(' '), fail.
+displaySol(_):- nl.
+
+num2varL([], []).
+num2varL([N|L], [V|R]):- num2var(N,V), num2varL(L, R).
 
 
 % ========== No need to change the following: =====================================
@@ -77,6 +82,9 @@ main:-  assert(numClauses(0)), assert(numVars(0)),
 	unix('picosat -v -o model infile.cnf'),
 	unix('cat model'),
 	see(model), readModel(M), seen, displaySol(M),
+% ========== Added for debugging purposes ==========
+	tell(sudokuRes), displaySol(M), told,
+% ==================================================
 	halt.
 
 var2num(T,N):- hash_term(T,Key), varNumber(Key,T,N),!.
